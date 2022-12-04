@@ -8,7 +8,6 @@ Created on Sun May 23 10:11:41 2021
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 import pandas as pd
-from pandas.io.json import json_normalize
 from datetime import datetime
 
 
@@ -58,7 +57,7 @@ def extract_mints(begin,end,pool_id):
         a=query_univ3(url,query,params)
     
         #df with queried data
-        mint_data=pd.io.json.json_normalize(a['mints'])
+        mint_data=pd.json_normalize(a['mints'])
         #timestamp transformation
         mint_data['timestamp_1']=[datetime.utcfromtimestamp((int(x))) for x in mint_data['timestamp']]
         
@@ -67,8 +66,8 @@ def extract_mints(begin,end,pool_id):
         if mintId==last_mintId:
             break
         else:
-            #Appending data queried
-            mints=mints.append(mint_data)
+            #concating data queried
+            mints=mints.concat(mint_data)
             #Assigning last datetime queried as begin date of the new loop
             ts_inicio=mint_data['timestamp'].iloc[-1]
             #Assigning last id queried
@@ -106,7 +105,7 @@ def extract_burns(begin,end,pool_id):
         a=query_univ3(url,query,params)
     
         #df with burn_data
-        burn_data=pd.io.json.json_normalize(a['burns'])
+        burn_data=pd.json_normalize(a['burns'])
         burn_data['timestamp_1']=[datetime.utcfromtimestamp((int(x))) for x in burn_data['timestamp']]
         
         burnId=burn_data['id'].iloc[-1]
@@ -114,8 +113,8 @@ def extract_burns(begin,end,pool_id):
         if burnId==last_burnId:
             break
         else:
-            #Appending data queried
-            burns=burns.append(burn_data)
+            #concating data queried
+            burns=burns.concat(burn_data)
             #Assigning last datetime queried as begin date of the new loop
             ts_inicio=burn_data['timestamp'].iloc[-1]
             #Assigning last id queried
@@ -156,7 +155,7 @@ def extract_collects(begin,end,pool_id):
         a=query_univ3(url,query,params)
     
         #df with burn_data
-        collect_data=pd.io.json.json_normalize(a['collects'])
+        collect_data=pd.json_normalize(a['collects'])
         collect_data['timestamp_1']=[datetime.utcfromtimestamp((int(x))) for x in collect_data['timestamp']]
         
         collectId=collect_data['id'].iloc[-1]
@@ -164,8 +163,8 @@ def extract_collects(begin,end,pool_id):
         if collectId==last_collectId:
             break
         else:
-            #Appending data queried
-            collects=collects.append(collect_data)
+            #concating data queried
+            collects=collects.concat(collect_data)
             #Assigning last datetime queried as begin date of the new loop
             ts_inicio=collect_data['timestamp'].iloc[-1]
             #Assigning last id queried
@@ -206,7 +205,7 @@ def extract_pooldayData(begin,end,pool_id):
         a=query_univ3(url,query,params)
     
         #df with pool_data
-        pooldayData_row=pd.io.json.json_normalize(a['poolDayDatas'])
+        pooldayData_row=pd.json_normalize(a['poolDayDatas'])
         pooldayData_row['timestamp_1']=[datetime.utcfromtimestamp((int(x))) for x in pooldayData_row['date']]
 
         DayId=pooldayData_row['id'].iloc[-1]
@@ -214,8 +213,8 @@ def extract_pooldayData(begin,end,pool_id):
         if DayId==last_DayId:
             break
         else:
-            #Appending data queried
-            pooldayData=pooldayData.append(pooldayData_row)
+            #concating data queried
+            pooldayData=pooldayData.concat(pooldayData_row)
             #Assigning last datetime queried as begin date of the new loop
             ts_inicio=pooldayData['date'].iloc[-1]
             #Assigning last id queried
@@ -250,7 +249,7 @@ def get_slot0(pool_id):
         }'''
     params ={"pool_id":pool_id}          
     a=query_univ3(url,query_slot0,params)
-    slot0_data=pd.io.json.json_normalize(a['pools'])
+    slot0_data=pd.json_normalize(a['pools'])
      
     return slot0_data
 
@@ -275,7 +274,7 @@ def query_top_pools(top_n,feature):
 
     params ={"top_n":top_n,"feature":feature}          
     a=query_univ3(url,query_top_pools,params)
-    top_pools_data=pd.io.json.json_normalize(a['pools'])
+    top_pools_data=pd.json_normalize(a['pools'])
     top_pools_data['pool_name']=top_pools_data['token0.symbol']+"-"+top_pools_data['token1.symbol']+"-"+top_pools_data['feeTier']
 
     return top_pools_data
