@@ -214,7 +214,8 @@ def extract_pooldayData(begin,end,pool_id):
             break
         else:
             #concating data queried
-            pooldayData=pooldayData.concat(pooldayData_row)
+            # pooldayData=pooldayData.concat(pooldayData_row)
+            pooldayData=pd.concat([pooldayData, pooldayData_row])
             #Assigning last datetime queried as begin date of the new loop
             ts_inicio=pooldayData['date'].iloc[-1]
             #Assigning last id queried
