@@ -6,6 +6,8 @@ import importlib
 importlib.reload(poolData.config)
 from poolData.config import API_URL, API_URL_FREE
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -18,17 +20,28 @@ def with_url(url):
         return wrapper
     return decorator
 
-def query_univ3(url,query_a,params):
+def query_client(url,query,variables):
 
-    sample_transport=RequestsHTTPTransport(
-       url=url,
-       verify=True,
-       retries=5,)
-    client = Client(transport=sample_transport)
-    query = gql(query_a)
-    response = client.execute(query,variable_values=params)
-    
-    return response
+    res = requests_retry_session().post(url, json={'query': query, 'variables': variables})
+
+    return res.json()
+
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Query all swaps in a pool in a defined time range'''
@@ -36,8 +49,8 @@ def query_univ3(url,query_a,params):
 def query_swaps(url, begin, end, pool_id):
 
     query = '''
-        query {
-            swaps(where: {pool: "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640", timestamp_gt: 1672502400, timestamp_lt:1678809600}, orderby: timestamp) {
+        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!) {
+            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt}, orderby: timestamp) {
             id
             amount0
             amount1
@@ -47,52 +60,43 @@ def query_swaps(url, begin, end, pool_id):
             }
         }
     '''
-    variables = {"begin": begin, 'end': end, "pool_id": pool_id }
-    data = requests.post(url, json={'query': query, 'variables': variables})
+    variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end}
+    res = query_client(url, query, variables)
+    data = pd.json_normalize(res['data']['swaps'])
     
-    return data.json()
+    return data
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-def get_api_data(timestamp):
-    apiUrl = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
-    query = """ query uniswap($timestamp:Int)  {
-                poolDayDatas(first:1000,where: 
-                        {date:$timestamp},
-                        orderBy: tvlUSD,
-                        orderDirection: desc ){
-                        date 
-                        pool{
-                          id
-                          createdAtTimestamp
-                          createdAtBlockNumber
-                          token0{
-                            symbol
-                          }
-                          token1{
-                            symbol
-                          }
-                          feeTier
-                        }
-                        liquidity
-                        sqrtPrice
-                        token0Price
-                        token1Price
-                        tick
-                        feeGrowthGlobal0X128
-                        feeGrowthGlobal1X128
-                        tvlUSD
-                        volumeToken0
-                        volumeToken1
-                        volumeUSD
-                        feesUSD
-                        txCount
-                        open
-                        high
-                        low
-                        close
-                }
-                } """
-    variables = {'timestamp': timestamp}
-    r = requests.post(apiUrl, json={'query': query , 'variables': variables})
-    return r.json()
+'''Query liquidity data for a pool'''
+@with_url(API_URL_FREE)
+def query_liquidity(url, begin, end, pool_id):
+    query = '''
+        query ($pool: String!, $periodStartUnix_gt: Int!, $periodStartUnix_lt: Int!) {
+        poolHourDatas(where: {pool: $pool, periodStartUnix_gt: $periodStartUnix_gt, periodStartUnix_lt: $periodStartUnix_lt}, orderby: periodStartUnix) {
+            periodStartUnix
+            liquidity
+            sqrtPrice
+            token0Price
+            token1Price
+            tick
+            feeGrowthGlobal0X128
+            feeGrowthGlobal0X128
+            tvlUSD
+            volumeToken0
+            volumeToken1
+            volumeUSD
+            feesUSD
+            txCount
+            open
+            high
+            low
+            close
+        }
+        }
+    '''
+    variables = {"periodStartUnix_gt": begin, 'periodStartUnix_lt': end, "pool": pool_id }
+    res = query_client(url, query, variables)
+    data = pd.json_normalize(res['data']['poolHourDatas'])
+    
+    return data
