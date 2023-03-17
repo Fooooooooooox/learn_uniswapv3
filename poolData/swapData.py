@@ -81,7 +81,7 @@ def query_liquidity(url, begin, end, pool_id):
             token1Price
             tick
             feeGrowthGlobal0X128
-            feeGrowthGlobal0X128
+            feeGrowthGlobal1X128
             tvlUSD
             volumeToken0
             volumeToken1
@@ -98,5 +98,40 @@ def query_liquidity(url, begin, end, pool_id):
     variables = {"periodStartUnix_gt": begin, 'periodStartUnix_lt': end, "pool": pool_id }
     res = query_client(url, query, variables)
     data = pd.json_normalize(res['data']['poolHourDatas'])
+    
+    return data
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''Query all initialized ticks in a pool'''
+@with_url(API_URL_FREE)
+def query_ticks(url, poolAddress):
+
+    query = '''
+        query ($poolAddress: String!) {
+            ticks(where: {poolAddress: $poolAddress}) {
+                tickIdx
+                liquidityGross
+                liquidityNet
+                price0
+                price1
+                volumeToken0
+                volumeToken1
+                volumeUSD
+                untrackedVolumeUSD
+                feesUSD
+                collectedFeesToken0
+                collectedFeesToken1
+                collectedFeesUSD
+                createdAtTimestamp
+                liquidityProviderCount
+                feeGrowthOutside0X128
+                feeGrowthOutside1X128
+            }
+        }
+    '''
+    variables = { "poolAddress": poolAddress}
+    res = query_client(url, query, variables)
+    data = pd.json_normalize(res['data']['ticks'])
     
     return data
