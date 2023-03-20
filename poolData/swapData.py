@@ -135,3 +135,105 @@ def query_ticks(url, poolAddress):
     data = pd.json_normalize(res['data']['ticks'])
     
     return data
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''Query all positions in a pool
+Args:
+    pool: pool address
+    block_gte: query txs after the block number
+    limit: the number of records you want
+    block
+    orderBy: check all available orderBy params here: https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3/graphql?query=query+%7B%0A++positions%28where%3A+%7Bpool%3A%220x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640%22%7D%2C+first%3A+10%2C+orderBy%3A+id%29%7B%0A++++id%0A++++%23+owner%0A++++%23+token0+%7B%0A++++%23+++id%0A++++%23+%7D%0A++++%23+token1+%7B%0A++++%23+++id%0A++++%23+%7D%0A++++%23+tickLower+%7B%0A++++%23+++id%0A++++%23+%7D%0A++++%23+tickUpper+%7B%0A++++%23+++id%0A++++%23+%7D%0A++++%23+liquidity%0A++++%23+depositedToken0%0A++++%23+depositedToken1%0A++++%23+withdrawnToken0%0A++++%23+withdrawnToken1%0A++++%23+collectedFeesToken0%0A++++%23+collectedFeesToken1%0A++++%23+transaction+%7B%0A++++%23+++id%0A++++%23+%7D%0A++++%23+feeGrowthInside0LastX128%0A++++%23+feeGrowthInside1LastX128%0A++%7D%0A%7D
+        just named a few that are available here：
+        id
+        liquidity
+        pool__liquidity
+        pool__sqrtPrice
+'''
+@with_url(API_URL_FREE)
+def query_positions(url, pool, block_gte=0, limit=None, orderBy=None):
+
+    query = '''
+        query ($pool: String!, $block_gte: Int, $first: Int, $orderBy: String) {
+            positions(where: {pool: $pool, _change_block: {number_gte: $block_gte}}, first: $first, orderBy: $orderBy) {
+                id
+                owner
+                token0 {
+                id
+                }
+                token1 {
+                id
+                }
+                tickLower {
+                id
+                }
+                tickUpper {
+                id
+                }
+                liquidity
+                depositedToken0
+                depositedToken1
+                withdrawnToken0
+                withdrawnToken1
+                collectedFeesToken0
+                collectedFeesToken1
+                transaction {
+                id
+                }
+                feeGrowthInside0LastX128
+                feeGrowthInside1LastX128
+            }
+        }
+    '''
+    variables = { "pool": pool, "block_gte": block_gte, "first": limit, "orderBy": orderBy}
+    res = query_client(url, query, variables)
+    data = pd.json_normalize(res['data']['positions'])
+    
+    return data
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''Query a specific position by position_id'''
+
+@with_url(API_URL_FREE)
+def query_position(url, position_id):
+
+    query = '''
+        query ($position_id: Int) {
+            position(id: $position_id){
+                id
+                owner
+                token0 {
+                id
+                }
+                token1 {
+                id
+                }
+                tickLower {
+                id
+                }
+                tickUpper {
+                id
+                }
+                liquidity
+                depositedToken0
+                depositedToken1
+                withdrawnToken0
+                withdrawnToken1
+                collectedFeesToken0
+                collectedFeesToken1
+                transaction {
+                id
+                }
+                feeGrowthInside0LastX128
+                feeGrowthInside1LastX128
+            }
+        }
+    '''
+    variables = { "position_id": position_id}
+    res = query_client(url, query, variables)
+    data = pd.json_normalize(res['data']['position'])
+    
+    return data
+
+
