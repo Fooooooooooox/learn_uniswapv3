@@ -28,7 +28,7 @@ def query_client(url,query,variables):
 
     return res.json()
 
-def query_with_pagination(url, base_query, variables, data_key, page_size=1000):
+def query_with_pagination(url, base_query, variables, data_key, cursor_key, page_size=1000):
     all_data = []
     cursor = None
 
@@ -37,7 +37,7 @@ def query_with_pagination(url, base_query, variables, data_key, page_size=1000):
             query {base_query}
         '''
         if cursor is not None:
-            variables.update({"timestamp_gt": cursor})
+            variables.update({cursor_key + "_gt": cursor})
 
         variables.update({"first": page_size})
         res = query_client(url, query, variables)
@@ -46,21 +46,17 @@ def query_with_pagination(url, base_query, variables, data_key, page_size=1000):
             error_message = res['errors'][0]['message']
             print(f"Error: {error_message}")
             break
-        
-        data = pd.json_normalize(res['data'][data_key])
 
+        data = pd.json_normalize(res['data'][data_key])
         if len(data) > 0:
             all_data.append(data)
-            cursor = int(data.iloc[-1]['timestamp'])
-            # print("this is the cursor:", cursor)
+            cursor = int(data.iloc[-1][cursor_key])
+            print("this is the cursor:", cursor)
             time.sleep(1)  # 添加延迟以防止对 API 的过多请求
         else:
             break
 
-    if len(all_data) > 2:
-        return pd.concat(all_data, ignore_index=True)
-    else:
-        all_data
+    return pd.concat(all_data, ignore_index=True)
 
 def requests_retry_session(
     retries=3,
@@ -109,16 +105,17 @@ def query_swaps(url, begin, end, pool_id, sqrtPriceX96_gte="0", sqrtPriceX96_lte
 
     variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end, "sqrtPriceX96_gte": sqrtPriceX96_gte, "sqrtPriceX96_lte": sqrtPriceX96_lte}
     data_key = 'swaps'
-    return query_with_pagination(url, base_query, variables, data_key)
+    cursor_key = 'timestamp'
+    return query_with_pagination(url, base_query, variables, data_key, cursor_key)
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Query liquidity data for a pool'''
 @with_url(API_URL_FREE)
-def query_liquidity(url, begin, end, pool_id, sqrtPrice_gt=None, sqrtPrice_lt=None):
-    query = '''
-        query ($pool: String!, $periodStartUnix_gt: Int!, $periodStartUnix_lt: Int!, $sqrtPrice_gt: String, $sqrtPrice_lt: String) {
-        poolHourDatas(where: {pool: $pool, periodStartUnix_gt: $periodStartUnix_gt, periodStartUnix_lt: $periodStartUnix_lt, sqrtPrice_gt: $sqrtPrice_gt, sqrtPrice_lt: $sqrtPrice_lt}, orderby: periodStartUnix) {
+def query_liquidity(url, begin, end, pool_id, sqrtPrice_gt="0", sqrtPrice_lt="6277101735386680763835789423207666416102355444464034512896"):
+    base_query = '''
+        query ($pool: String!, $periodStartUnix_gt: Int!, $periodStartUnix_lt: Int!, $sqrtPrice_gt: String, $sqrtPrice_lt: String, $first: Int) {
+        poolHourDatas(where: {pool: $pool, periodStartUnix_gt: $periodStartUnix_gt, periodStartUnix_lt: $periodStartUnix_lt, sqrtPrice_gt: $sqrtPrice_gt, sqrtPrice_lt: $sqrtPrice_lt}, orderby: periodStartUnix, orderDirection: asc, first: $first) {
             periodStartUnix
             liquidity
             sqrtPrice
@@ -141,14 +138,9 @@ def query_liquidity(url, begin, end, pool_id, sqrtPrice_gt=None, sqrtPrice_lt=No
         }
     '''
     variables = {"periodStartUnix_gt": begin, 'periodStartUnix_lt': end, "pool": pool_id, "sqrtPrice_gt": sqrtPrice_gt, "sqrtPrice_lt":sqrtPrice_lt}
-    res = query_client(url, query, variables)
-    if res.get('errors'):
-        error_message = res['errors'][0]['message']
-        print(f"Error: {error_message}")
-        return error_message
-    data = pd.json_normalize(res['data']['poolHourDatas'])
-    
-    return data
+    data_key = 'poolHourDatas'
+    cursor_key = 'periodStartUnix'
+    return query_with_pagination(url, base_query, variables, data_key, cursor_key)
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
