@@ -3,11 +3,13 @@ from gql.transport.requests import RequestsHTTPTransport
 import pandas as pd
 from datetime import datetime
 import importlib
-importlib.reload(poolData.config)
-from poolData.config import API_URL, API_URL_FREE
+import config
+importlib.reload(config)
+from poolData.config import API_URL_FREE
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import time
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -25,6 +27,38 @@ def query_client(url,query,variables):
     res = requests_retry_session().post(url, json={'query': query, 'variables': variables})
 
     return res.json()
+
+def query_with_pagination(url, base_query, variables, data_key):
+    first = 1000
+    skip = 0
+    all_data = []
+
+    while True:
+        query = f'''
+            query {base_query}
+        '''
+        variables.update({"first": first, "skip": skip})
+        res = query_client(url, query, variables)
+
+        if res.get('errors'):
+            error_message = res['errors'][0]['message']
+            print(f"Error: {error_message}")
+            break
+        
+        data = pd.json_normalize(res['data'][data_key])
+
+        if len(data) > 0:
+            all_data.append(data)
+            print("querying... The current page is: ", skip)
+            skip += first
+            time.sleep(1)  # 添加延迟以防止对 API 的过多请求
+        else:
+            break
+
+    if first < skip:
+        return pd.concat(all_data, ignore_index=True)
+    else:
+        return all_data
 
 def requests_retry_session(
     retries=3,
@@ -46,34 +80,43 @@ def requests_retry_session(
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Query all swaps in a pool in a defined time range'''
 @with_url(API_URL_FREE)
-def query_swaps(url, begin, end, pool_id):
+# sqrtPriceX96_gte and sqrtPriceX96_lte are set to max range: (0, 2^192)
+def query_swaps(url, begin, end, pool_id, sqrtPriceX96_gte="0", sqrtPriceX96_lte="6277101735386680763835789423207666416102355444464034512896"):
 
-    query = '''
-        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!) {
-            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt}, orderby: timestamp) {
+    base_query = '''
+        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!, $sqrtPriceX96_gte: String, $sqrtPriceX96_lte: String) {
+            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt, sqrtPriceX96_gte: $sqrtPriceX96_gte, sqrtPriceX96_lte: $sqrtPriceX96_lte}, orderby: timestamp) {
             id
+            transaction
+            timestamp
+            pool
+            token0
+            token1
+            sender
+            recipient
+            origin
             amount0
             amount1
-            timestamp
             amountUSD
             sqrtPriceX96
+            tick
+            logIndex
             }
         }
     '''
-    variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end}
-    res = query_client(url, query, variables)
-    data = pd.json_normalize(res['data']['swaps'])
-    
-    return data
+
+    variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end, "sqrtPriceX96_gte": sqrtPriceX96_gte, "sqrtPriceX96_lte": sqrtPriceX96_lte}
+    data_key = 'swaps'
+    return query_with_pagination(url, base_query, variables, data_key)
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Query liquidity data for a pool'''
 @with_url(API_URL_FREE)
-def query_liquidity(url, begin, end, pool_id):
+def query_liquidity(url, begin, end, pool_id, sqrtPrice_gt=None, sqrtPrice_lt=None):
     query = '''
-        query ($pool: String!, $periodStartUnix_gt: Int!, $periodStartUnix_lt: Int!) {
-        poolHourDatas(where: {pool: $pool, periodStartUnix_gt: $periodStartUnix_gt, periodStartUnix_lt: $periodStartUnix_lt}, orderby: periodStartUnix) {
+        query ($pool: String!, $periodStartUnix_gt: Int!, $periodStartUnix_lt: Int!, $sqrtPrice_gt: String, $sqrtPrice_lt: String) {
+        poolHourDatas(where: {pool: $pool, periodStartUnix_gt: $periodStartUnix_gt, periodStartUnix_lt: $periodStartUnix_lt, sqrtPrice_gt: $sqrtPrice_gt, sqrtPrice_lt: $sqrtPrice_lt}, orderby: periodStartUnix) {
             periodStartUnix
             liquidity
             sqrtPrice
@@ -95,8 +138,12 @@ def query_liquidity(url, begin, end, pool_id):
         }
         }
     '''
-    variables = {"periodStartUnix_gt": begin, 'periodStartUnix_lt': end, "pool": pool_id }
+    variables = {"periodStartUnix_gt": begin, 'periodStartUnix_lt': end, "pool": pool_id, "sqrtPrice_gt": sqrtPrice_gt, "sqrtPrice_lt":sqrtPrice_lt}
     res = query_client(url, query, variables)
+    if res.get('errors'):
+        error_message = res['errors'][0]['message']
+        print(f"Error: {error_message}")
+        return error_message
     data = pd.json_normalize(res['data']['poolHourDatas'])
     
     return data
@@ -132,6 +179,10 @@ def query_ticks(url, poolAddress):
     '''
     variables = { "poolAddress": poolAddress}
     res = query_client(url, query, variables)
+    if res.get('errors'):
+        error_message = res['errors'][0]['message']
+        print(f"Error: {error_message}")
+        return error_message
     data = pd.json_normalize(res['data']['ticks'])
     
     return data
@@ -188,6 +239,10 @@ def query_positions(url, pool, block_gte=0, limit=None, orderBy=None):
     '''
     variables = { "pool": pool, "block_gte": block_gte, "first": limit, "orderBy": orderBy}
     res = query_client(url, query, variables)
+    if res.get('errors'):
+        error_message = res['errors'][0]['message']
+        print(f"Error: {error_message}")
+        return error_message
     data = pd.json_normalize(res['data']['positions'])
     
     return data
@@ -232,6 +287,10 @@ def query_position(url, position_id):
     '''
     variables = { "position_id": position_id}
     res = query_client(url, query, variables)
+    if res.get('errors'):
+        error_message = res['errors'][0]['message']
+        print(f"Error: {error_message}")
+        return error_message
     data = pd.json_normalize(res['data']['position'])
     
     return data
