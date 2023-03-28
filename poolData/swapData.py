@@ -28,16 +28,18 @@ def query_client(url,query,variables):
 
     return res.json()
 
-def query_with_pagination(url, base_query, variables, data_key):
-    first = 1000
-    skip = 0
+def query_with_pagination(url, base_query, variables, data_key, page_size=1000):
     all_data = []
+    cursor = None
 
     while True:
         query = f'''
             query {base_query}
         '''
-        variables.update({"first": first, "skip": skip})
+        if cursor is not None:
+            variables.update({"timestamp_gt": cursor})
+
+        variables.update({"first": page_size})
         res = query_client(url, query, variables)
 
         if res.get('errors'):
@@ -49,16 +51,16 @@ def query_with_pagination(url, base_query, variables, data_key):
 
         if len(data) > 0:
             all_data.append(data)
-            print("querying... The current page is: ", skip)
-            skip += first
+            cursor = int(data.iloc[-1]['timestamp'])
+            # print("this is the cursor:", cursor)
             time.sleep(1)  # 添加延迟以防止对 API 的过多请求
         else:
             break
 
-    if first < skip:
+    if len(all_data) > 2:
         return pd.concat(all_data, ignore_index=True)
     else:
-        return all_data
+        all_data
 
 def requests_retry_session(
     retries=3,
@@ -84,8 +86,8 @@ def requests_retry_session(
 def query_swaps(url, begin, end, pool_id, sqrtPriceX96_gte="0", sqrtPriceX96_lte="6277101735386680763835789423207666416102355444464034512896"):
 
     base_query = '''
-        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!, $sqrtPriceX96_gte: String, $sqrtPriceX96_lte: String) {
-            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt, sqrtPriceX96_gte: $sqrtPriceX96_gte, sqrtPriceX96_lte: $sqrtPriceX96_lte}, orderby: timestamp) {
+        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!, $sqrtPriceX96_gte: String, $sqrtPriceX96_lte: String, $first: Int) {
+            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt, sqrtPriceX96_gte: $sqrtPriceX96_gte, sqrtPriceX96_lte: $sqrtPriceX96_lte}, orderby: timestamp, orderDirection: asc, first: $first) {
             id
             transaction
             timestamp
