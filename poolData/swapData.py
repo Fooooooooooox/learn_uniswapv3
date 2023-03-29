@@ -31,6 +31,7 @@ def query_client(url,query,variables):
 def query_with_pagination(url, base_query, variables, data_key, cursor_key, page_size=1000):
     all_data = []
     cursor = None
+    variables.update({"first": page_size})
 
     while True:
         query = f'''
@@ -39,18 +40,18 @@ def query_with_pagination(url, base_query, variables, data_key, cursor_key, page
         if cursor is not None:
             variables.update({cursor_key + "_gt": cursor})
 
-        variables.update({"first": page_size})
         res = query_client(url, query, variables)
 
         if res.get('errors'):
             error_message = res['errors'][0]['message']
             print(f"Error: {error_message}")
-            break
+            return error_message
 
         data = pd.json_normalize(res['data'][data_key])
         if len(data) > 0:
             all_data.append(data)
-            cursor = int(data.iloc[-1][cursor_key])
+            cursor_type = type(variables[cursor_key + "_gt"])
+            cursor = cursor_type(data.iloc[-1][cursor_key])
             print("this is the cursor:", cursor)
             time.sleep(1)  # 添加延迟以防止对 API 的过多请求
         else:
@@ -82,8 +83,8 @@ def requests_retry_session(
 def query_swaps(url, begin, end, pool_id, sqrtPriceX96_gte="0", sqrtPriceX96_lte="6277101735386680763835789423207666416102355444464034512896"):
 
     base_query = '''
-        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!, $sqrtPriceX96_gte: String, $sqrtPriceX96_lte: String, $first: Int) {
-            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt, sqrtPriceX96_gte: $sqrtPriceX96_gte, sqrtPriceX96_lte: $sqrtPriceX96_lte}, orderby: timestamp, orderDirection: asc, first: $first) {
+        query ($pool: String!, $timestamp_gt: Int!, $timestamp_lt: Int!, $sqrtPriceX96_gte: String, $sqrtPriceX96_lte: String, $first: Int, $id_gt: String) {
+            swaps(where: {pool: $pool, timestamp_gt: $timestamp_gt, timestamp_lt: $timestamp_lt, sqrtPriceX96_gte: $sqrtPriceX96_gte, sqrtPriceX96_lte: $sqrtPriceX96_lte, id_gt: $id_gt}, orderby: id, orderDirection: asc, first: $first) {
             id
             transaction
             timestamp
@@ -103,9 +104,9 @@ def query_swaps(url, begin, end, pool_id, sqrtPriceX96_gte="0", sqrtPriceX96_lte
         }
     '''
 
-    variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end, "sqrtPriceX96_gte": sqrtPriceX96_gte, "sqrtPriceX96_lte": sqrtPriceX96_lte}
+    variables = { "pool": pool_id, "timestamp_gt": begin, 'timestamp_lt': end, "sqrtPriceX96_gte": sqrtPriceX96_gte, "sqrtPriceX96_lte": sqrtPriceX96_lte, "id_gt": ""}
     data_key = 'swaps'
-    cursor_key = 'timestamp'
+    cursor_key = 'id'
     return query_with_pagination(url, base_query, variables, data_key, cursor_key)
 
 
