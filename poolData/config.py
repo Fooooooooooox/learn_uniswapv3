@@ -1,7 +1,14 @@
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-import pandas as pd
-from datetime import datetime
-import requests
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-API_URL_FREE = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3'
+class Config:
+    def __init__(self):
+        self.api_url = os.environ.get("API_URL")
+        self.api_url_free = os.environ.get("API_URL_FREE")
+    
+    def get_api_url(self):
+        return self.api_url
+    
+    def get_api_url_free(self):
+        return self.api_url_free
