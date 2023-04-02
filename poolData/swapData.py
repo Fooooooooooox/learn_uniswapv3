@@ -57,7 +57,12 @@ class QueryClient:
             else:
                 break
 
-        return pd.concat(all_data, ignore_index=True)
+            if len(all_data) == 0:
+                return pd.DataFrame()
+            elif len(all_data) == 1:
+                return all_data[0]
+            else:
+                return pd.concat(all_data, ignore_index=True)
 
     def requests_retry_session(
         retries=3,
@@ -80,7 +85,6 @@ class QueryClient:
 '''Query'''
 class SwapDataQuery:
     api_url_free = config.get_api_url_free()
-    print(api_url_free)
 
     ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
     '''Query all swaps in a pool in a defined time range'''
@@ -299,3 +303,39 @@ class SwapDataQuery:
         return data
 
 
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''Query position snapshots by position_id'''
+    @QueryClient.with_url(api_url_free)
+    def query_position_snaps(url, position_id, begin_block, current_block=0):
+        position_id_begin = position_id + "#" + begin_block
+        if current_block == 0:
+            current_block = begin_block
+        position_id_current = position_id + "#" + current_block
+        query = '''
+            query ($position_id_begin: String, $position_id_current: String) {
+            positionSnapshots(id: $position_id_current, where: {id: $position_id_begin}) {
+                id
+                position {
+                id
+                liquidity
+                depositedToken0
+                depositedToken1
+                }
+                blockNumber
+                timestamp
+                liquidity
+                depositedToken0
+                depositedToken1
+            }
+            }
+
+        '''
+        variables = { "position_id_begin": position_id_begin, "position_id_current": position_id_current}
+        res = QueryClient.query_client(url, query, variables)
+        if res.get('errors'):
+            error_message = res['errors'][0]['message']
+            print(f"Error: {error_message}")
+            return error_message
+        data = pd.json_normalize(res['data']['positionSnapshots'])
+        
+        return data
