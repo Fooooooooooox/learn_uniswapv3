@@ -57,12 +57,12 @@ class QueryClient:
             else:
                 break
 
-            if len(all_data) == 0:
-                return pd.DataFrame()
-            elif len(all_data) == 1:
-                return all_data[0]
-            else:
-                return pd.concat(all_data, ignore_index=True)
+        if len(all_data) == 0:
+            return pd.DataFrame()
+        elif len(all_data) == 1:
+            return all_data[0]
+        else:
+            return pd.concat(all_data, ignore_index=True)
 
     def requests_retry_session(
         retries=3,
