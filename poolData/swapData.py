@@ -52,7 +52,7 @@ class QueryClient:
                 all_data.append(data)
                 cursor_type = type(variables[cursor_key + "_gt"])
                 cursor = cursor_type(data.iloc[-1][cursor_key])
-                print("this is the cursor:", cursor)
+                # print("this is the cursor:", cursor)
                 time.sleep(1)  # 添加延迟以防止对 API 的过多请求
             else:
                 break
