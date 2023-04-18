@@ -1,4 +1,6 @@
 import math
+import numpy as np
+
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Utils'''
 '''
@@ -43,5 +45,5 @@ class utils:
     def calculateLiquidity(self, token0_amount, token1_amount, price_low, price_upper):
         l1 = (token0_amount * (price_low ** 0.5) * (price_upper ** 0.5)) / ((price_upper ** 0.5) - (price_low ** 0.5))
         l2 = token1_amount / ((price_upper ** 0.5) - (price_low ** 0.5))
-        l = min(l1, l2)
+        l = np.minimum(l1, l2)
         return l
