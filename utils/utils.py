@@ -47,3 +47,9 @@ class utils:
         l2 = token1_amount / ((price_upper ** 0.5) - (price_low ** 0.5))
         l = np.minimum(l1, l2)
         return l
+    
+    def moving_average(self, data, window_size):
+        ma_data = data.rolling(window=window_size).mean()
+        # 去掉NaN值
+        ma_data = ma_data.dropna()
+        return ma_data
