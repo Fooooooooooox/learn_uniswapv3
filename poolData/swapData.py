@@ -34,12 +34,13 @@ class QueryClient:
         variables.update({"first": page_size})
 
         while True:
+            # cursor = variables[cursor_key+"_gt"]
             query = f'''
                 query {base_query}
             '''
             if cursor is not None:
                 variables.update({cursor_key + "_gt": cursor})
-
+            
             res = QueryClient.query_client(url, query, variables)
 
             if res.get('errors'):
@@ -52,7 +53,7 @@ class QueryClient:
                 all_data.append(data)
                 cursor_type = type(variables[cursor_key + "_gt"])
                 cursor = cursor_type(data.iloc[-1][cursor_key])
-                # print("this is the cursor:", cursor)
+                print("this is the cursor:", cursor)
                 time.sleep(1)  # 添加延迟以防止对 API 的过多请求
             else:
                 break
@@ -339,3 +340,22 @@ class SwapDataQuery:
         data = pd.json_normalize(res['data']['positionSnapshots'])
         
         return data
+
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''Query position snapshots by position_id'''
+    @QueryClient.with_url(api_url_free)
+    def query_tick_liquidities(url, poolAddress, block):
+        base_query = '''
+            query ($poolAddress: String!, $block: Int!, $first: Int, $id_gt: String) {
+            ticks(where: {poolAddress: $poolAddress, id_gt: $id_gt}, block: {number: $block}, orderBy: id, orderDirection: asc
+    first: $first) {
+                id
+                liquidityGross
+            }
+            }
+
+        '''
+        variables = { "poolAddress": poolAddress, "id_gt": poolAddress, "block": block}
+        data_key = 'ticks'
+        cursor_key = 'id'
+        return QueryClient.query_with_pagination(url, base_query, variables, data_key, cursor_key)
