@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import pandas as pd
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 '''Utils'''
@@ -53,3 +54,27 @@ class utils:
         # 去掉NaN值
         ma_data = ma_data.dropna()
         return ma_data
+
+    def calculate_bollinger_bands(self, price_series, window_size=20, num_std=2):
+        """
+        计算布林带
+        :param price_series: 包含价格时间序列数据的Series
+        :param window_size: 移动平均窗口大小
+        :param num_std: 标准差倍数
+        :return: 包含中轨、上轨、下轨价格的dataframe
+        """
+        # 将价格数据转换为dataframe，并计算移动平均和标准差
+        df = pd.DataFrame({'price': price_series}, index=price_series.index)
+        rolling_mean = df['price'].rolling(window=window_size).mean()
+        rolling_std = df['price'].rolling(window=window_size).std()
+
+        # 计算上轨和下轨价格
+        upper_band = rolling_mean + (rolling_std * num_std)
+        lower_band = rolling_mean - (rolling_std * num_std)
+
+        # 保存中轨、上轨、下轨价格到dataframe中
+        df['middle_band'] = rolling_mean
+        df['upper_band'] = upper_band
+        df['lower_band'] = lower_band
+
+        return df
