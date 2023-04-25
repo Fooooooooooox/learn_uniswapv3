@@ -11,9 +11,11 @@ def roi(amount_begin, amount_end, duration_days):
     anualized_roi = (1 + roi) ** (365 / duration_days) - 1
     return roi, anualized_roi
 
-def volatility(valur_series):
-    return valur_series.std()
+def volatility(value_series):
+    return value_series.std()
 
-def sharpRatio(roi, volatilityl, rf = 0):
+def sharpRatio(roi, volatility, rf = 0):
     return roi - rf / volatility
+
+# def calculateValueSeries(merged_data):
 
