@@ -11,7 +11,7 @@ realPrice: 现实生活使用的价格(经过decimal转换)
 '''
 
 class utils:
-    
+    @staticmethod
     def sqrtPrice2Price(self, sqrtPrice):
         price = (sqrtPrice / (2**96) ) ** 2
         return price
@@ -43,9 +43,9 @@ class utils:
         return nearestTick
 
     # price 是未经过decimal转换的，正常形式的价格（可以用tickIndex2Price计算出来）
-    def calculateLiquidity(self, token0_amount, token1_amount, price_low, price_upper):
-        l1 = (token0_amount * (price_low ** 0.5) * (price_upper ** 0.5)) / ((price_upper ** 0.5) - (price_low ** 0.5))
-        l2 = token1_amount / ((price_upper ** 0.5) - (price_low ** 0.5))
+    def calculateLiquidity(self, token0_amount, token1_amount, price_low, price_upper, decimal0, decimal1):
+        l1 = ((token0_amount * (10 ** decimal0)) * (price_low ** 0.5) * (price_upper ** 0.5)) / ((price_upper ** 0.5) - (price_low ** 0.5))
+        l2 = (token1_amount * (10 ** decimal1)) / ((price_upper ** 0.5) - (price_low ** 0.5))
         l = np.minimum(l1, l2)
         return l
     
@@ -78,3 +78,12 @@ class utils:
         df['lower_band'] = lower_band
 
         return df
+    
+    def calculate_current_position0(self, liquidity, price):
+        return liquidity / (price ** 0.5)
+    
+    def calculate_current_position1(self, liquidity, price):
+        return liquidity * (price ** 0.5)
+    
+    def calculate_fullRange_liquidity(self, token0_amount, token1_amount, decimal0, decimal1):
+        return (token0_amount * (10 ** decimal0) * token1_amount * (10 ** decimal1)) ** 0.5
