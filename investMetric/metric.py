@@ -2,6 +2,7 @@ import sys
 sys.path.append("../utils") 
 import numpy as np
 from utils.utils import utils
+from tabulate import tabulate
 
 my_utils = utils()
 
@@ -26,7 +27,7 @@ def maxDrawdown(value_series):
         drawdowns.append((max_so_far - price) / max_so_far)
     return np.max(drawdowns)
 
-def metric(merged_data, token0_amount, token1_amount, begin, end, decimal0, decimal1, rf, l):
+def metric(merged_data, begin, end, decimal0, decimal1, rf, l):
     # calculate fee0_sum and fee1_sum
     merged_data["fee0_sum"] = merged_data['fee0'].cumsum()
     merged_data["fee1_sum"] = merged_data['fee1'].cumsum()
@@ -49,4 +50,6 @@ def metric(merged_data, token0_amount, token1_amount, begin, end, decimal0, deci
     print("** sharpe_ratio = ", sharpe_ratio)
     max_drawdown = maxDrawdown(merged_data["position_value"])
     print("** max_drawdown = ", max_drawdown)
+    data = [['volatility', my_volatility], ['roi', my_roi], ['sharpe_ratio', sharpe_ratio], ['max_drawdown', max_drawdown]]
+    print(tabulate(data, headers=['Output', 'Value'], tablefmt='orgtbl'))
 

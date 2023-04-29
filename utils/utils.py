@@ -11,7 +11,6 @@ realPrice: 现实生活使用的价格(经过decimal转换)
 '''
 
 class utils:
-    @staticmethod
     def sqrtPrice2Price(self, sqrtPrice):
         price = (sqrtPrice / (2**96) ) ** 2
         return price
